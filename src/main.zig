@@ -10,7 +10,7 @@ const CustomError = error{
 };
 
 const Node = struct {
-    val: i64,
+    val: f64,
     priority: i64 = 0,
     next: ?*Node = null,
     op: u8,
@@ -60,14 +60,14 @@ pub fn main() !void {
     const stdin = std.io.getStdIn().reader();
     const str = try stdin.readUntilDelimiter(&buf, '\n');
 
-    // Build linked list
-    var temp: [19]u8 = undefined; // max number of characters (bytes) in string representation of i64
-    var tInd: usize = 0;
+    // 1. Parse input and build linked list
+    var digitsAccum: [19]u8 = undefined; // 19 = max number of characters (bytes) in string representation of i64
+    var accumInd: usize = 0;
     var prevChar: u8 = 's'; // 'start of the input' label
     var priority: i64 = 0;
     var maxPriority: i64 = 0;
-    var closingBracket: i64 = 0;
-    var equals: u8 = 0;
+    var closingBracketsCounter: i64 = 0;
+    var equalityOperatorsCounter: u8 = 0;
     var previouslyWasOperator: bool = false;
     for (str) |item| {
         if (priority > maxPriority) {
@@ -98,8 +98,8 @@ pub fn main() !void {
         }
 
         if (item == '=') {
-            equals += 1;
-            if (equals > 1) {
+            equalityOperatorsCounter += 1;
+            if (equalityOperatorsCounter > 1) {
                 return CustomError.MoreThanOneEqualitySign;
             }
         }
@@ -109,7 +109,7 @@ pub fn main() !void {
                 return CustomError.TwoOperatorsTogether;
             }
             previouslyWasOperator = true;
-            const num = try std.fmt.parseInt(i64, temp[0..tInd], 10);
+            const num = try std.fmt.parseFloat(f64, digitsAccum[0..accumInd]);
             const node = try allocator.create(Node);
             node.* = .{
                 .op = item,
@@ -118,28 +118,31 @@ pub fn main() !void {
                 .priority = priority,
             };
             list.add(node);
-            if (closingBracket > 0) {
-                priority -= closingBracket;
-                closingBracket = 0;
+            if (closingBracketsCounter > 0) {
+                priority -= closingBracketsCounter;
+                closingBracketsCounter = 0;
             }
 
-            tInd = 0;
+            accumInd = 0;
             continue;
         }
 
         if (item == ')') {
-            closingBracket += 1;
+            closingBracketsCounter += 1;
             continue;
         }
 
-        // Didit must be from 0 to 9. Item is the char code of the digit: '0'=48, '9'=57
-        if (item < 48 or item > 57) {
-            return CustomError.NonDigit;
+        // Didit must be from 0 to 9.
+        // Item is the char code of the digit: '0'=48, '9'=57
+        // or period for floating point numbers: '.'=46
+        if (item == 46 or (item >= 48 and item <= 57)) {
+            previouslyWasOperator = false;
+            digitsAccum[accumInd] = item;
+            accumInd += 1;
+            continue;
         }
 
-        previouslyWasOperator = false;
-        temp[tInd] = item;
-        tInd += 1;
+        return CustomError.NonDigit;
     }
 
     if (priority != 0) {
@@ -148,8 +151,10 @@ pub fn main() !void {
 
     // list.printL(); // for debugging
 
-    // Calculate
-    // 1. Find sublist with highest priority
+    // 2. Calculate result
+    // 2.1. Find sublist with highest priority
+    // 2.2. Calculate sublist result
+    // 2.3. Replace initial sublist with the node containing result
     var startNode: ?*Node = undefined;
     var endNode: ?*Node = undefined;
     var st: bool = false;
@@ -189,7 +194,9 @@ pub fn main() !void {
     print("Result = {d}\n", .{startNode.?.val});
 }
 
-fn calc(startNode: *Node, endNode: *Node) i64 {
+/// Calculates result of the sublist passed in as pointers
+/// to start node and end node of the sublist
+fn calc(startNode: *Node, endNode: *Node) f64 {
     if (startNode == endNode) {
         return startNode.val;
     }
@@ -205,6 +212,13 @@ fn calc(startNode: *Node, endNode: *Node) i64 {
             cur = cur.?.next;
             continue;
         }
+        if (prev != null and prev.?.op == '/') {
+            prev.?.op = cur.?.op;
+            prev.?.val /= cur.?.val;
+            prev.?.next = cur.?.next;
+            cur = cur.?.next;
+            continue;
+        }
         prev = cur;
         cur = cur.?.next;
     }
@@ -213,12 +227,16 @@ fn calc(startNode: *Node, endNode: *Node) i64 {
         prev.?.op = endNode.op;
         prev.?.val *= endNode.val;
         prev.?.next = endNode.next;
+    } else if (prev.?.op == '/') {
+        prev.?.op = endNode.op;
+        prev.?.val /= endNode.val;
+        prev.?.next = endNode.next;
     } else {
         prev = endNode;
     }
 
     cur = startNode;
-    var res: i64 = cur.?.val;
+    var res: f64 = cur.?.val;
     while (cur != prev) {
         defer cur = cur.?.next;
 
