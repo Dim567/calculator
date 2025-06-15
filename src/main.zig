@@ -7,6 +7,8 @@ const CustomError = error{
     WrongBrackets,
     MoreThanOneEqualitySign,
     TwoOperatorsTogether,
+    WrongUsageOfPeriodSign,
+    TwoDotsTogether,
 };
 
 const Node = struct {
@@ -46,6 +48,25 @@ const List = struct {
 };
 
 pub fn main() !void {
+    const intro =
+        \\=====================================>
+        \\
+        \\This is a simple calculator written in Zig programming language.
+        \\It allows to perform +, -, *, / operations and grouping with brackets.
+        \\
+        \\To calculate: 
+        \\ - type expression and put `=` at the end
+        \\ - press `Enter`
+        \\
+        \\To exit:
+        \\ - type `exit`
+        \\ - press `Enter`
+        \\
+        \\=====================================>
+        \\
+        \\
+    ;
+    print("{s}", .{intro});
     var buffer: [100000]u8 = undefined;
     var fba = std.heap.FixedBufferAllocator.init(&buffer);
     const fbaAllocator = fba.allocator();
@@ -92,6 +113,7 @@ pub fn main() !void {
                 continue;
             }
         }
+
         if (item == '(') {
             priority += 1;
             continue;
@@ -107,6 +129,9 @@ pub fn main() !void {
         if (item == '+' or item == '-' or item == '*' or item == '/' or item == '=') {
             if (previouslyWasOperator) {
                 return CustomError.TwoOperatorsTogether;
+            }
+            if (prevChar == '.') {
+                return CustomError.WrongUsageOfPeriodSign;
             }
             previouslyWasOperator = true;
             const num = try std.fmt.parseFloat(f64, digitsAccum[0..accumInd]);
@@ -132,10 +157,17 @@ pub fn main() !void {
             continue;
         }
 
+        if (item == '.' and prevChar == '.') {
+            return CustomError.TwoDotsTogether;
+        }
+
+        if (item == '.' and prevChar == ')') {
+            return CustomError.WrongUsageOfPeriodSign;
+        }
+
         // Didit must be from 0 to 9.
         // Item is the char code of the digit: '0'=48, '9'=57
-        // or period for floating point numbers: '.'=46
-        if (item == 46 or (item >= 48 and item <= 57)) {
+        if (item == '.' or (item >= 48 and item <= 57)) {
             previouslyWasOperator = false;
             digitsAccum[accumInd] = item;
             accumInd += 1;
