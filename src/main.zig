@@ -1,4 +1,6 @@
 const std = @import("std");
+const heap = std.heap;
+const io = std.io;
 const Allocator = std.mem.Allocator;
 const print = std.debug.print;
 
@@ -40,10 +42,8 @@ const List = struct {
     pub fn printL(self: *List) void {
         var cur = self.head;
         while (cur) |item| {
-            // print("Val: {d} Op: {c} Pr: {d}\n", .{ item.val, item.op, item.priority });
             cur = item.next;
         }
-        // print("List length: {d}\n", .{self.len});
     }
 };
 
@@ -55,31 +55,46 @@ pub fn main() !void {
         \\It allows to perform +, -, *, / operations and grouping with brackets.
         \\
         \\To calculate: 
-        \\ - type expression and put `=` at the end
-        \\ - press `Enter`
+        \\ 1. type expression and put `=` at the end
+        \\ 2. press `Enter`
         \\
         \\To exit:
-        \\ - type `exit`
-        \\ - press `Enter`
+        \\ 1. type `exit`
+        \\ 2. press `Enter`
         \\
         \\=====================================>
         \\
         \\
     ;
     print("{s}", .{intro});
+
     var buffer: [100000]u8 = undefined;
-    var fba = std.heap.FixedBufferAllocator.init(&buffer);
+    var fba = heap.FixedBufferAllocator.init(&buffer);
     const fbaAllocator = fba.allocator();
 
-    var arena = std.heap.ArenaAllocator.init(fbaAllocator);
-    defer arena.deinit();
-    var allocator = arena.allocator();
-
     var buf: [10000]u8 = undefined;
-    var list = List{};
 
-    const stdin = std.io.getStdIn().reader();
-    const str = try stdin.readUntilDelimiter(&buf, '\n');
+    while (true) {
+        const stdin = io.getStdIn().reader();
+        const str = try stdin.readUntilDelimiter(&buf, '\n');
+        if (std.mem.eql(u8, str[0..4], "exit")) {
+            print("Exiting...\n", .{});
+            return;
+        }
+
+        var arena = heap.ArenaAllocator.init(fbaAllocator);
+        defer arena.deinit();
+        const allocator = arena.allocator();
+
+        const res = try parseAndCalculate(allocator, str);
+
+        print("Result = {d}\n=====================================>\n", .{res});
+    }
+}
+
+/// Parses input and calculates result, returns error in case of parsing failure.
+fn parseAndCalculate(allocator: Allocator, str: []u8) !f64 {
+    var list = List{};
 
     // 1. Parse input and build linked list
     var digitsAccum: [19]u8 = undefined; // 19 = max number of characters (bytes) in string representation of i64
@@ -181,8 +196,6 @@ pub fn main() !void {
         return CustomError.WrongBrackets;
     }
 
-    // list.printL(); // for debugging
-
     // 2. Calculate result
     // 2.1. Find sublist with highest priority
     // 2.2. Calculate sublist result
@@ -214,8 +227,7 @@ pub fn main() !void {
             maxPriority -= 1;
             continue;
         }
-        const tmp = calc(startNode.?, endNode.?);
-        // print("{d}===\n", .{tmp});
+        const tmp = calculate(startNode.?, endNode.?);
         startNode.?.op = endNode.?.op;
         startNode.?.val = tmp;
         startNode.?.priority = maxPriority - 1;
@@ -223,12 +235,12 @@ pub fn main() !void {
         st = false;
     }
 
-    print("Result = {d}\n", .{startNode.?.val});
+    return startNode.?.val;
 }
 
 /// Calculates result of the sublist passed in as pointers
-/// to start node and end node of the sublist
-fn calc(startNode: *Node, endNode: *Node) f64 {
+/// to start node and end node of the sublist.
+fn calculate(startNode: *Node, endNode: *Node) f64 {
     if (startNode == endNode) {
         return startNode.val;
     }
