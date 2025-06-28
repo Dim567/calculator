@@ -93,7 +93,7 @@ pub fn main() !void {
 }
 
 /// Parses input and calculates result, returns error in case of parsing failure.
-fn parseAndCalculate(allocator: Allocator, str: []u8) !f64 {
+fn parseAndCalculate(allocator: Allocator, str: []const u8) !f64 {
     var list = List{};
 
     // 1. Parse input and build linked list
@@ -291,4 +291,65 @@ fn calculate(startNode: *Node, endNode: *Node) f64 {
         res -= cur.?.next.?.val;
     }
     return res;
+}
+
+const expectEqual = std.testing.expectEqual;
+
+test "should add two numbers" {
+    var buffer: [100]u8 = undefined;
+    var fba = heap.FixedBufferAllocator.init(&buffer);
+    const fbaAllocator = fba.allocator();
+    const calcRes = try parseAndCalculate(fbaAllocator, "2+3=");
+    try expectEqual(calcRes, 5);
+}
+
+test "should subtract two numbers" {
+    var buffer: [100]u8 = undefined;
+    var fba = heap.FixedBufferAllocator.init(&buffer);
+    const fbaAllocator = fba.allocator();
+    const calcRes = try parseAndCalculate(fbaAllocator, "15-5=");
+    try expectEqual(calcRes, 10);
+}
+
+test "should multiply two numbers" {
+    var buffer: [100]u8 = undefined;
+    var fba = heap.FixedBufferAllocator.init(&buffer);
+    const fbaAllocator = fba.allocator();
+    const calcRes = try parseAndCalculate(fbaAllocator, "7*8=");
+    try expectEqual(calcRes, 56);
+}
+
+test "should divide two numbers" {
+    var buffer: [100]u8 = undefined;
+    var fba = heap.FixedBufferAllocator.init(&buffer);
+    const fbaAllocator = fba.allocator();
+    const calcRes = try parseAndCalculate(fbaAllocator, "21/7=");
+    try expectEqual(calcRes, 3);
+}
+
+test "should properly calculate if first number is negative" {
+    var buffer: [100]u8 = undefined;
+    var fba = heap.FixedBufferAllocator.init(&buffer);
+    const fbaAllocator = fba.allocator();
+    const calcRes = try parseAndCalculate(fbaAllocator, "-5+2.25=");
+    try expectEqual(calcRes, -2.75);
+}
+
+test "should perform complex calculations with brackets" {
+    var buffer: [1000]u8 = undefined;
+    var fba = heap.FixedBufferAllocator.init(&buffer);
+    const fbaAllocator = fba.allocator();
+    const expression = "-1*(3+5-(0/2+4))+3.15/3*2*(7-29.1)+19=";
+    const calcRes = try parseAndCalculate(fbaAllocator, expression);
+    try expectEqual(calcRes, -3.1410000000000004e1);
+}
+
+test "shoulds perform complex calculations with brackets" {
+    var buffer: [1000]u8 = undefined;
+    var fba = heap.FixedBufferAllocator.init(&buffer);
+    const fbaAllocator = fba.allocator();
+    const expression = "2.1*(-22.1)=";
+    const calcRes = try parseAndCalculate(fbaAllocator, expression);
+    // small particle in the end (4) due to floating point arithmetic
+    try expectEqual(calcRes, -3.1410000000000004e1);
 }

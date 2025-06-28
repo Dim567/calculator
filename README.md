@@ -25,7 +25,7 @@ It allows to perform +, -, *, / operations and grouping with brackets.
 ## Test
 
 ```bash
-<project_directory>$ zig test
+<project_directory>$ zig test ./src/main.zig
 ```
 
 ## Interface
