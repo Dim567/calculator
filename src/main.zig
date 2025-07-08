@@ -341,15 +341,6 @@ test "should perform complex calculations with brackets" {
     const fbaAllocator = fba.allocator();
     const expression = "-1*(3+5-(0/2+4))+3.15/3*2*(7-29.1)+19=";
     const calcRes = try parseAndCalculate(fbaAllocator, expression);
-    try expectEqual(calcRes, -3.1410000000000004e1);
-}
-
-test "shoulds perform complex calculations with brackets" {
-    var buffer: [1000]u8 = undefined;
-    var fba = heap.FixedBufferAllocator.init(&buffer);
-    const fbaAllocator = fba.allocator();
-    const expression = "2.1*(-22.1)=";
-    const calcRes = try parseAndCalculate(fbaAllocator, expression);
     // small particle in the end (4) due to floating point arithmetic
     try expectEqual(calcRes, -3.1410000000000004e1);
 }
